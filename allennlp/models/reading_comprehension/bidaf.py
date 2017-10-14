@@ -187,8 +187,16 @@ class BidirectionalAttentionFlow(Model):
         embedded_passage = self._highway_layer(self._text_field_embedder(passage))
         batch_size = embedded_question.size(0)
         passage_length = embedded_passage.size(1)
-        question_mask = util.get_text_field_mask(question).float()
-        passage_mask = util.get_text_field_mask(passage).float()
+        
+        for k, v in question.items():
+            dims = len(v.size())
+            break
+        if dims > 2:
+            question_mask = util.get_text_field_mask({k: v[:,:,0] for k, v in question.items()}).float()
+            passage_mask = util.get_text_field_mask({k: v[:,:,0] for k, v in passage.items()}).float()
+        else:
+            question_mask = util.get_text_field_mask(question).float()
+            passage_mask = util.get_text_field_mask(passage).float()
         question_lstm_mask = question_mask if self._mask_lstms else None
         passage_lstm_mask = passage_mask if self._mask_lstms else None
 

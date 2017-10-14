@@ -126,8 +126,17 @@ class DecomposableAttention(Model):
         """
         embedded_premise = self._text_field_embedder(premise)
         embedded_hypothesis = self._text_field_embedder(hypothesis)
-        premise_mask = get_text_field_mask(premise).float()
-        hypothesis_mask = get_text_field_mask(hypothesis).float()
+
+        for k, v in premise.items():
+            dims = len(v.size())
+            break
+        if dims > 2:
+            premise_mask = get_text_field_mask({k: v[:,:,0] for k, v in premise.items()}).float()
+            hypothesis_mask = get_text_field_mask({k: v[:,:,0] for k, v in hypothesis.items()}).float()
+        else:
+            premise_mask = get_text_field_mask(premise).float()
+            hypothesis_mask = get_text_field_mask(hypothesis).float()
+
 
         if self._premise_encoder:
             embedded_premise = self._premise_encoder(embedded_premise, premise_mask)
@@ -136,9 +145,10 @@ class DecomposableAttention(Model):
 
         projected_premise = self._attend_feedforward(embedded_premise)
         projected_hypothesis = self._attend_feedforward(embedded_hypothesis)
+        
         # Shape: (batch_size, premise_length, hypothesis_length)
         similarity_matrix = self._matrix_attention(projected_premise, projected_hypothesis)
-
+        
         # Shape: (batch_size, premise_length, hypothesis_length)
         p2h_attention = last_dim_softmax(similarity_matrix, hypothesis_mask)
         # Shape: (batch_size, premise_length, embedding_dim)
