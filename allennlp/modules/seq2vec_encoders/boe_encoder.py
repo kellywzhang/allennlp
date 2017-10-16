@@ -72,9 +72,9 @@ class BagOfEmbeddingsEncoder(Seq2VecEncoder):
         if mask is not None:
             tokens = tokens * mask.unsqueeze(-1).float()
 
-        if self.comb_method == 'sum':
+        if self._comb_method == 'sum':
             result = torch.sum(tokens, 1)
-        elif self.comb_method == 'mean':
+        elif self._comb_method == 'mean':
             result = torch.mean(tokens, 1)
 
         if self.projection_layer:
