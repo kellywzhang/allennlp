@@ -258,3 +258,66 @@ class SpacyMinimalWordSplitter(WordSplitter):
         ner = params.pop('ner', False)
         params.assert_empty(cls.__name__)
         return cls(language, pos_tags, parse, ner)
+
+
+@WordSplitter.register('spacy-minimal-bpe')
+class SpacyMinimalBPEWordSplitter(WordSplitter):
+    """
+    A ``WordSplitter`` that uses spaCy's tokenizer.  It's fast and reasonable - this is the
+    recommended ``WordSplitter``.
+    """
+    # In order to avoid loading spacy models a whole bunch of times, we'll save references to them,
+    # keyed by the options we used to create the spacy model, so any particular configuration only
+    # gets loaded once.
+    def __init__(self,
+                 language: str = 'en',
+                 merges: str = None,
+                 bpe_vocab: str = None,
+                 lowercase_tokens: bool = False,
+                 pos_tags: bool = False,
+                 parse: bool = False,
+                 ner: bool = False) -> None:
+        self.tokenizer = self._get_spacy_model(language, pos_tags, parse, ner)
+
+    @overrides
+    def split_words(self, sentence: str) -> List[Token]:
+        return [t for t in self.tokenizer(sentence) if not t.is_space]
+
+    def _get_spacy_model(self, language: str, pos_tags: bool, parse: bool, ner: bool) -> Any:
+        options = (language, pos_tags, parse, ner)
+        kwargs = {'vectors': False}
+        if not pos_tags:
+            kwargs['tagger'] = False
+        if not parse:
+            kwargs['parser'] = False
+        if not ner:
+            kwargs['entity'] = False
+        spacy_model = spacy.load(language, **kwargs)
+        
+        # Custom
+        vocab = spacy_model.vocab
+        rules = TOKENIZER_EXCEPTIONS
+        token_match = spacy.language_data.TOKEN_MATCH  # miscellaenous tokenization
+        prefix_search = spacy.util.compile_prefix_regex(spacy.language_data.TOKENIZER_PREFIXES).search
+        suffix_search = spacy.util.compile_suffix_regex(spacy.language_data.TOKENIZER_SUFFIXES[:-4]).search
+
+        # Custom tokenizer w/o infix tokenization
+        word_tokenizer = spacy.tokenizer.Tokenizer(vocab, rules=rules,
+                                                   prefix_search=prefix_search,
+                                                   suffix_search=suffix_search,
+                                                   infix_finditer=None,
+                                                   token_match=token_match)
+        return word_tokenizer
+
+
+    @classmethod
+    def from_params(cls, params: Params) -> 'WordSplitter':
+        language = params.pop('language', 'en')
+        merges = params.pop('merges', None)
+        bpe_vocab = params.pop('bpe_vocab', None)
+        lowercase_tokens = params.pop('lowercase_tokens', False)
+        pos_tags = params.pop('pos_tags', False)
+        parse = params.pop('parse', False)
+        ner = params.pop('ner', False)
+        params.assert_empty(cls.__name__)
+        return cls(language, pos_tags, parse, ner)

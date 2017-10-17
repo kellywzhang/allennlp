@@ -115,7 +115,13 @@ class SemanticRoleLabeler(Model):
 
         """
         embedded_text_input = self.embedding_dropout(self.text_field_embedder(tokens))
-        mask = get_text_field_mask(tokens)
+        for k, v in tokens.items():
+            dims = len(v.size())
+            break
+        if dims > 2:
+            mask = get_text_field_mask({k: v[:,:,0] for k, v in tokens.items()})
+        else:
+            mask = get_text_field_mask(tokens)
         embedded_verb_indicator = self.binary_feature_embedding(verb_indicator.long())
         # Concatenate the verb feature onto the embedded text. This now
         # has shape (batch_size, sequence_length, embedding_dim + binary_feature_dim).
