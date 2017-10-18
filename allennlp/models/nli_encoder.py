@@ -51,6 +51,8 @@ class NLIEncoder(Model):
                  text_field_embedder: TextFieldEmbedder,
                  encoder: Seq2SeqEncoder,
                  fc_dim: int,
+                 nonlinear_fc: bool,
+                 dropout_fc: float=0.0,
                  initializer: InitializerApplicator = InitializerApplicator(),
                  regularizer: Optional[RegularizerApplicator] = None) -> None:
         super(NLIEncoder, self).__init__(vocab, regularizer)
@@ -58,13 +60,25 @@ class NLIEncoder(Model):
         self._text_field_embedder = text_field_embedder
         self._encoder = encoder
         self._fc_dim = fc_dim
-        self._classifier = nn.Sequential(
-                               nn.Linear(4*encoder.get_output_dim(), fc_dim),
-                               nn.Tanh(),
-                               nn.Linear(fc_dim, fc_dim),
-                               nn.Tanh(),
-                               nn.Linear(fc_dim, 3),
-                           )
+        self._nonlinear_fc = nonlinear_fc
+        self._dropout_fc = dropout_fc
+        if nonlinear_fc:
+            self._classifier = nn.Sequential(
+                    nn.Dropout(p=dropout_fc),
+                    nn.Linear(4*encoder.get_output_dim(), fc_dim),
+                    nn.Tanh(),
+                    nn.Dropout(p=dropout_fc),
+                    nn.Linear(fc_dim, fc_dim),
+                    nn.Tanh(),
+                    nn.Dropout(p=dropout_fc),
+                    nn.Linear(fc_dim, 3),
+                )
+        else:
+            self._classifier = nn.Sequential(
+                    nn.Linear(4*encoder.get_output_dim(), fc_dim),
+                    nn.Linear(fc_dim, fc_dim),
+                    nn.Linear(fc_dim, 3)
+                )
 
         self._num_labels = vocab.get_vocab_size(namespace="labels")
         self._accuracy = CategoricalAccuracy()
@@ -117,7 +131,9 @@ class NLIEncoder(Model):
 
         premise = torch.max(premise_hidden, 1)[0]
         hypothesis = torch.max(hypothesis_hidden, 1)[0]
-        
+        #premise = torch.sum(premise_hidden, 1)
+        #hypothesis = torch.sum(hypothesis_hidden, 1)
+
         features = torch.cat((premise, hypothesis, torch.abs(premise-hypothesis), premise*hypothesis), 1)
         label_logits = self._classifier(features)        
         label_probs = torch.nn.functional.softmax(label_logits)
@@ -148,6 +164,9 @@ class NLIEncoder(Model):
             encoder = None
 
         fc_dim = params.pop('fc_dim', 512)
+        nonlinear_fc = params.pop('nonlinear_fc', True)
+        dropout_fc = params.pop('dropout_fc', 0.0)
+
         init_params = params.pop('initializer', None)
         reg_params = params.pop('regularizer', None)
         initializer = (InitializerApplicator.from_params(init_params)
@@ -159,5 +178,7 @@ class NLIEncoder(Model):
                    text_field_embedder=text_field_embedder,
                    encoder=encoder,
                    fc_dim=fc_dim,
+                   nonlinear_fc=nonlinear_fc,
+                   dropout_fc=dropout_fc,
                    initializer=initializer,
                    regularizer=regularizer)
