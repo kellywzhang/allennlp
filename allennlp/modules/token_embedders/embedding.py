@@ -227,14 +227,14 @@ def _read_pretrained_embedding_file(embeddings_filename: str,
                 words_found.add(word)
                 vector = numpy.asarray(fields[1:], dtype='float32')
                 embeddings[word] = vector
-    logger.info("Emb load count: {}".format(len(words_found)))
     notfound = words_to_keep.difference(words_found)
+    logger.info("Emb load count: {}; Emb not found count: {}".format(len(words_found), len(notfound)))
     """
     with open("/home/kz918/bpe/eval/nli_encoder/not_found.txt", 'w') as f:
         for word in notfound:
             f.write(word+"\n")
     """
-    assert len(notfound) < 10
+    #assert len(notfound) < 10
     if not embeddings:
         raise ConfigurationError("No embeddings of correct dimension found; you probably "
                                  "misspecified your embedding_dim parameter, or didn't "

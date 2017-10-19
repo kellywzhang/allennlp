@@ -103,7 +103,9 @@ class BPETokenizer(Tokenizer):
         for merge in self.merges:
             if merge in chars:
                 pattern = re.compile(r'(?<!\S)' + re.escape(merge) + r'(?!\S)')
-                chars = pattern.sub("".join(merge.split(" ")), chars)
+                wp = "".join(merge.split(" "))
+                wp = wp.replace('\\','\\\\')
+                chars = pattern.sub(wp, chars)
         return chars
 
     @classmethod
