@@ -1,4 +1,5 @@
 from typing import List
+import re
 
 from overrides import overrides
 
@@ -62,15 +63,25 @@ class BPETokenizer(Tokenizer):
             text = text.lower()
         if self._word_split:
             words = self._word_splitter.split_words(text)
-            tokens = [self.tokenize_word(w.text) for w in words]
-            all_tokens = []
-            for t in tokens:
-                all_tokens += t
-            return all_tokens
+            # (index, [list of wordpiece strings])
+            word_bpe = [(w.idx, self.tokenize_word(w.text)) for w in words]
+            sent_bpe = []
+            for idx, wplist in word_bpe:
+                last_len = 0
+                for w in wplist:
+                    sent_bpe.append(Token(w, idx=last_len+idx))
+                    last_len = len(w.replace("_", ""))
+            return sent_bpe
         else:
-            return self.tokenize_word(text)
+            bpe = self.tokenize_word(text)
+            idx = 0
+            tokens = []
+            for wp in bpe:
+                tokens.append(Token(wp, idx))
+                idx += len(wp.text)
+            return tokens
 
-    def tokenize_word(self, text: str) -> List[Token]:
+    def tokenize_word(self, text: str) -> List[str]:
         text = "_"+text
  
         # Check if word in
@@ -83,11 +94,7 @@ class BPETokenizer(Tokenizer):
         self.bpe_vocab[text] = raw_tokens
 
         # Make token objects
-        tokens = [Token(t) for t in bpe_tokens]
-        """
-        START TOKEN NOT SUPPORTED
-        """
-        return tokens
+        return bpe_tokens
 
 
     def merge_word(self, word):
@@ -95,7 +102,8 @@ class BPETokenizer(Tokenizer):
         chars = " ".join(list(word))
         for merge in self.merges:
             if merge in chars:
-                chars = chars.replace(merge, "".join(merge.split(" ")))
+                pattern = re.compile(r'(?<!\S)' + re.escape(merge) + r'(?!\S)')
+                chars = pattern.sub("".join(merge.split(" ")), chars)
         return chars
 
     @classmethod

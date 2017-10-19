@@ -205,8 +205,9 @@ def _read_pretrained_embedding_file(embeddings_filename: str,
     vocab_size = vocab.get_vocab_size(namespace)
     embeddings = {}
 
+    words_found = set()
     # First we read the embeddings from the file, only keeping vectors for the words we need.
-    logger.info("Reading embeddings from file")
+    logger.info("Reading embeddings from file; {}".format(len(words_to_keep)))
     with gzip.open(embeddings_filename, 'rb') as embeddings_file:
         for line in embeddings_file:
             fields = line.decode('utf-8').strip().split(' ')
@@ -223,9 +224,17 @@ def _read_pretrained_embedding_file(embeddings_filename: str,
                 continue
             word = fields[0]
             if word in words_to_keep:
+                words_found.add(word)
                 vector = numpy.asarray(fields[1:], dtype='float32')
                 embeddings[word] = vector
-
+    logger.info("Emb load count: {}".format(len(words_found)))
+    notfound = words_to_keep.difference(words_found)
+    """
+    with open("/home/kz918/bpe/eval/nli_encoder/not_found.txt", 'w') as f:
+        for word in notfound:
+            f.write(word+"\n")
+    """
+    assert len(notfound) < 10
     if not embeddings:
         raise ConfigurationError("No embeddings of correct dimension found; you probably "
                                  "misspecified your embedding_dim parameter, or didn't "
