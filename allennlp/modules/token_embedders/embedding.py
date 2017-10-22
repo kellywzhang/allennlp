@@ -229,11 +229,12 @@ def _read_pretrained_embedding_file(embeddings_filename: str,
                 embeddings[word] = vector
     notfound = words_to_keep.difference(words_found)
     logger.info("Emb load count: {}; Emb not found count: {}".format(len(words_found), len(notfound)))
-    """
-    with open("/home/kz918/bpe/eval/nli_encoder/not_found.txt", 'w') as f:
+    #"""
+    with open("/home/kz918/bpe/eval/bidaf/not_found.txt", 'w', encoding='utf-8') as f:
         for word in notfound:
-            f.write(word+"\n")
-    """
+            f.write(word)
+            f.write('\n')
+    #"""
     #assert len(notfound) < 10
     if not embeddings:
         raise ConfigurationError("No embeddings of correct dimension found; you probably "

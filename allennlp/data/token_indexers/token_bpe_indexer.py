@@ -34,6 +34,8 @@ class TokenBPEIndexer(TokenIndexer[List[int]]):
                  bpe_tokenizer: BPETokenizer = None) -> None:
         self._namespace = namespace
         self._bpe_tokenizer = bpe_tokenizer
+        self.oov_count = 0
+        self.total_count = 0
 
     @overrides
     def count_vocab_items(self, token: Token, counter: Dict[str, Dict[str, int]]):
@@ -58,15 +60,9 @@ class TokenBPEIndexer(TokenIndexer[List[int]]):
             else:
                 index = vocabulary.get_token_index(piece.text, self._namespace)
             indices.append(index)
-        """
-        print(indices)
-        with open('/scratch/kz918/Data/GloVe/merge/yo2.txt', 'w', encoding='utf-8') as f:
-            for t in tokens:
-                f.write(t.text)
-                f.write(" ")
-            f.write("\n")
-        import pdb; pdb.set_trace()
-        """
+            if index == 1:
+                self.oov_count += 1
+            self.total_count += 1
         return indices
 
     @overrides

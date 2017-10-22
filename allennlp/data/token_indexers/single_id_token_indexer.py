@@ -26,6 +26,8 @@ class SingleIdTokenIndexer(TokenIndexer[int]):
     def __init__(self, namespace: str = 'tokens', lowercase_tokens: bool = False) -> None:
         self.namespace = namespace
         self.lowercase_tokens = lowercase_tokens
+        self.oov_count = 0
+        self.total_count = 0
 
     @overrides
     def count_vocab_items(self, token: Token, counter: Dict[str, Dict[str, int]]):
@@ -48,6 +50,9 @@ class SingleIdTokenIndexer(TokenIndexer[int]):
             if self.lowercase_tokens:
                 text = text.lower()
             index = vocabulary.get_token_index(text, self.namespace)
+        if index == 1:
+            self.oov_count += 1
+        self.total_count += 1
         return index
 
     @overrides

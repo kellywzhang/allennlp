@@ -70,6 +70,8 @@ def char_span_to_token_span(token_offsets: List[Tuple[int, int]],
     if token_offsets[start_index][0] != character_span[0]:
         error = True
     end_index = start_index
+    #with open("/home/kz918/bpe/eval/bidaf/debug_hi.txt", 'w', encoding='utf-8') as f:
+    #    f.write(str(start_index))
     while end_index < len(token_offsets) and token_offsets[end_index][1] < character_span[1]:
         end_index += 1
     if end_index == start_index and token_offsets[end_index][1] > character_span[1]:
@@ -83,6 +85,7 @@ def char_span_to_token_span(token_offsets: List[Tuple[int, int]],
         # said "split with Luckett and Roberson".  In this case, we'll just keep the end index
         # where it is, and assume the intent was to mark the whole token.
         logger.debug("Bad labelling or tokenization - end offset doesn't match")
+
     if token_offsets[end_index][1] != character_span[1]:
         error = True
     return (start_index, end_index), error

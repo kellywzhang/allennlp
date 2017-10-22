@@ -62,15 +62,35 @@ class BPETokenizer(Tokenizer):
         if self._lowercase_tokens:
             text = text.lower()
         if self._word_split:
+            #text = "Unaspirated or tenuis consonants are occasionally marked with the modifier letter for unaspiration ⟨◌˭⟩, a superscript equal sign: ⟨t˭⟩. Usually, however, unaspirated consonants are left unmarked: ⟨t⟩.".lower()
             words = self._word_splitter.split_words(text)
             # (index, [list of wordpiece strings])
             word_bpe = [(w.idx, self.tokenize_word(w.text)) for w in words]
             sent_bpe = []
+           
+            """
+            with open("/home/kz918/bpe/eval/bidaf/debug_{}.txt".format(text[-1]), 'w', encoding='utf-8') as f:
+                for w in words:
+                    f.write(w.text+" ")
+                f.write("\n")
+                #for idx, word in word_bpe:
+                #    f.write(str(idx)+" "+word)
+            """
             for idx, wplist in word_bpe:
                 last_len = 0
-                for w in wplist:
-                    sent_bpe.append(Token(w, idx=last_len+idx))
-                    last_len = len(w.replace("_", ""))
+                for wx in wplist:
+                    #import pdb; pdb.set_trace()
+                    sent_bpe.append(Token(wx, idx=last_len+idx))
+                    last_len += len(wx.replace("_", ""))
+            if len(text) <= sent_bpe[-1].idx:
+                import pdb; pdb.set_trace()
+            """
+            with open("/home/kz918/bpe/eval/bidaf/debug_{}.txt".format(text[-1]), 'a', encoding='utf-8') as f:
+                for w in sent_bpe:
+                    f.write(w.text+" ")
+                f.write("\n")
+            #import pdb; pdb.set_trace()
+            """
             return sent_bpe
         else:
             bpe = self.tokenize_word(text)
@@ -78,7 +98,7 @@ class BPETokenizer(Tokenizer):
             tokens = []
             for wp in bpe:
                 tokens.append(Token(wp, idx))
-                idx += len(wp.text)
+                idx += len(wp)
             return tokens
 
     def tokenize_word(self, text: str) -> List[str]:

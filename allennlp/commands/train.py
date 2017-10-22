@@ -146,14 +146,28 @@ def train_model(params: Params, serialization_dir: str) -> Model:
                                    Dataset([instance for dataset in all_datasets
                                             for instance in dataset.instances]))
     vocab.save_to_files(os.path.join(serialization_dir, "vocabulary"))
-
+    for name, v in vocab._token_to_index.items():
+        logger.info("Vocab {}: {}".format(name, len(v)))
+    """
+    with open('/home/kz918/bpe/eval/nli_encoder/base_vocab.txt', 'w') as f:
+        for word, index in vocab._token_to_index['tokens'].items():
+            f.write(word+" "+str(index)+'\n')
+    """
     model = Model.from_params(vocab, params.pop('model'))
     iterator = DataIterator.from_params(params.pop("iterator"))
 
     train_data.index_instances(vocab)
+    if 'tokens' in dataset_reader._token_indexers.keys():
+        logger.info("Tokens Train OOV: {}; total count {}".format(dataset_reader._token_indexers['tokens'].oov_count, dataset_reader._token_indexers['tokens'].total_count))
+    if 'token_bpe' in dataset_reader._token_indexers.keys():
+        logger.info("token_bpe Train OOV: {}; total count {}".format(dataset_reader._token_indexers['token_bpe'].oov_count, dataset_reader._token_indexers['token_bpe'].total_count))
     if validation_data:
         validation_data.index_instances(vocab)
-
+        if 'tokens' in dataset_reader._token_indexers.keys():
+            logger.info("Tokens Train+Val OOV: {}; total count {}".format(dataset_reader._token_indexers['tokens'].oov_count, dataset_reader._token_indexers['tokens'].total_count))
+        if 'token_bpe' in dataset_reader._token_indexers.keys():
+            logger.info("token_bpe Train OOV: {}; total count {}".format(dataset_reader._token_indexers['token_bpe'].oov_count, dataset_reader._token_indexers['token_bpe'].total_count))
+    
     trainer_params = params.pop("trainer")
     trainer = Trainer.from_params(model,
                                   serialization_dir,
@@ -171,6 +185,10 @@ def train_model(params: Params, serialization_dir: str) -> Model:
 
     if test_data and evaluate_on_test:
         test_data.index_instances(vocab)
+        if 'tokens' in dataset_reader._token_indexers.keys():
+            logger.info("Tokens Train+Val+Test OOV: {}; total count {}".format(dataset_reader._token_indexers['tokens'].oov_count, dataset_reader._token_indexers['tokens'].total_count))
+        if 'token_bpe' in dataset_reader._token_indexers.keys():
+            logger.info("token_bpe Train OOV: {}; total count {}".format(dataset_reader._token_indexers['token_bpe'].oov_count, dataset_reader._token_indexers['token_bpe'].total_count))
         evaluate(model, test_data, iterator, cuda_device=trainer._cuda_device)  # pylint: disable=protected-access
 
     elif test_data:

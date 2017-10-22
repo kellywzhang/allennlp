@@ -92,10 +92,56 @@ class SquadReader(DatasetReader):
         # We need to convert character indices in `passage_text` to token indices in
         # `passage_tokens`, as the latter is what we'll actually use for supervision.
         token_spans: List[Tuple[int, int]] = []
-        passage_offsets = [(token.idx, token.idx + len(token.text)) for token in passage_tokens]
+        passage_offsets = [(token.idx, token.idx + len(token.text.replace("_", ""))) for token in passage_tokens]
+        """
+        with open("/home/kz918/bpe/eval/bidaf/debug.txt", 'w', encoding='utf-8') as f:
+            f.write(question_text)
+            f.write('\n')
+            f.write(passage_text)
+            f.write("\n")
+            for x in passage_tokens:
+                f.write(x.text)
+                f.write(" ")
+            f.write('\n')
+            for x in answer_texts:
+                f.write(x)
+                f.write("\n")
+            f.write("\n")
+            for i, (start, end) in enumerate(passage_offsets):
+                f.write(str(i)+": ")
+                f.write(passage_text[start:end])
+                f.write(" ")
+                f.write(str(start)+" "+str(end))
+                f.write(" "+passage_tokens[i].text)
+                f.write("\n") 
+            f.write("\n")
+            f.write("\nanswers\n")
+        """
+
         for char_span_start, char_span_end in char_spans:
+            #try:
             (span_start, span_end), error = util.char_span_to_token_span(passage_offsets,
                                                                          (char_span_start, char_span_end))
+            """
+            with open("/home/kz918/bpe/eval/bidaf/debug.txt", 'a', encoding='utf-8') as f:
+                f.write(str([x.text for x in passage_tokens[span_start:span_end+1]]))
+                f.write("\n") 
+            except:
+                with open("/home/kz918/bpe/eval/bidaf/error.txt", 'w', encoding='utf-8') as f:
+                    f.write(question_text)
+                    f.write('\n')
+                    f.write(passage_text)
+                    f.write("\n")
+                    for x in passage_tokens:
+                        f.write(x.text)
+                        f.write(" ")
+                    f.write('\n')
+                    for x in answer_texts:
+                        f.write(x)
+                        f.write("\n")
+                    f.write("\n")
+                import pdb; pdb.set_trace()
+            """
             if error:
                 logger.debug("Passage: %s", passage_text)
                 logger.debug("Passage tokens: %s", passage_tokens)
@@ -106,6 +152,15 @@ class SquadReader(DatasetReader):
                 logger.debug("Answer: %s", passage_text[char_span_start:char_span_end])
             token_spans.append((span_start, span_end))
 
+        """
+        with open("/home/kz918/bpe/eval/bidaf/debug.txt", 'a', encoding='utf-8') as f:
+            f.write("\n")
+            f.write("\nspans\n")
+            for start, end in token_spans:
+                f.write(str(start)+" "+str(end)+"\n")
+            f.write("\n")
+        """
+        #import pdb; pdb.set_trace()
         return util.make_reading_comprehension_instance(self._tokenizer.tokenize(question_text),
                                                         passage_tokens,
                                                         self._token_indexers,
