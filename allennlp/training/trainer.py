@@ -1,7 +1,6 @@
 """
 A :class:`~allennlp.training.trainer.Trainer` is responsible for training a
 :class:`~allennlp.models.model.Model`.
-
 Typically you might create a configuration file specifying the model and
 training parameters and then use :mod:`~allennlp.commands.train`
 rather than instantiating a ``Trainer`` yourself.
@@ -138,7 +137,8 @@ class Trainer:
         self._no_tqdm = no_tqdm
 
         if self._cuda_device >= 0:
-            self._model = self._model.cuda(self._cuda_device)
+            #self._model = self._model.cuda(self._cuda_device)
+            self._model = self._model.cuda()
 
         self._log_interval = 10  # seconds
         self._summary_interval = 100  # num batches between logging to tensorboard
@@ -260,17 +260,16 @@ class Trainer:
 
         return self._get_metrics(train_loss, batch_num, reset=True)
 
-    def _should_stop_early(self, latest_metric: float, prev_metrics: List[float]) -> bool:
+    def _should_stop_early(self, metric_history: List[float]) -> bool:
         """
         uses patience and the validation metric to determine if training should stop early
         """
-        if len(prev_metrics) > self._patience:
-            # Is the worst validation performance in past self._patience
-            # epochs is better than current value?
+        if len(metric_history) > self._patience:
+            # Is the best score in the past N epochs worse than the best score overall?
             if self._validation_metric_decreases:
-                return max(prev_metrics[-self._patience:]) < latest_metric
+                return min(metric_history[-self._patience:]) > min(metric_history)
             else:
-                return min(prev_metrics[-self._patience:]) > latest_metric
+                return max(metric_history[-self._patience:]) < max(metric_history)
 
         return False
 
@@ -364,7 +363,9 @@ class Trainer:
 
         logger.info("Beginning training.")
 
+        training_start_time = time.time()
         for epoch in range(epoch_counter, self._num_epochs):
+            epoch_start_time = time.time()
             train_metrics = self._train_epoch(epoch)
 
             if self._validation_dataset is not None:
@@ -374,10 +375,10 @@ class Trainer:
 
                 # Check validation metric for early stopping
                 this_epoch_val_metric = val_metrics[self._validation_metric]
-                if self._should_stop_early(this_epoch_val_metric, validation_metric_per_epoch):
+                validation_metric_per_epoch.append(this_epoch_val_metric)
+                if self._should_stop_early(validation_metric_per_epoch):
                     logger.info("Ran out of patience.  Stopping training.")
                     break
-                validation_metric_per_epoch.append(this_epoch_val_metric)
 
                 # Check validation metric to see if it's the best so far
                 if self._validation_metric_decreases:
@@ -394,6 +395,16 @@ class Trainer:
             self._metrics_to_console(train_metrics, val_metrics)
             self._update_learning_rate(epoch, val_metric=this_epoch_val_metric)
 
+            epoch_elapsed_time = time.time() - epoch_start_time
+            logger.info("Epoch duration: " + time.strftime("%H:%M:%S", time.gmtime(epoch_elapsed_time)))
+
+            if epoch < self._num_epochs - 1:
+                training_elapsed_time = time.time() - training_start_time
+                estimated_time_remaining = training_elapsed_time * \
+                    ((self._num_epochs - epoch_counter) / float(epoch - epoch_counter + 1) - 1)
+                formatted_time = time.strftime("%H:%M:%S", time.gmtime(estimated_time_remaining))
+                logger.info("Estimated training time remaining: " + formatted_time)
+
     def _forward(self, batch: dict, for_training: bool) -> dict:
         tensor_batch = arrays_to_variables(batch, self._cuda_device, for_training=for_training)
         return self._model.forward(**tensor_batch)
@@ -409,7 +420,6 @@ class Trainer:
         """
         Saves a checkpoint of the model to self._serialization_dir.
         Is a no-op if self._serialization_dir is None.
-
         Parameters
         ----------
         epoch : int, required.
@@ -431,7 +441,7 @@ class Trainer:
                                                     "training_state_epoch_{}.th".format(epoch)))
             if is_best:
                 logger.info("Best validation performance so far. "
-                            "Copying weights to %s/best.th'.", self._serialization_dir)
+                            "Copying weights to '%s/best.th'.", self._serialization_dir)
                 shutil.copyfile(model_path, os.path.join(self._serialization_dir, "best.th"))
 
     def _restore_checkpoint(self) -> Tuple[int, List[float]]:
@@ -442,10 +452,8 @@ class Trainer:
         if you wish to load a model for inference/load parts of a model into a new
         computation graph, you should use the native Pytorch functions:
         `` model.load_state_dict(torch.load("/path/to/model/weights.th"))``
-
         If ``self._serialization_dir`` does not exist or does not contain any checkpointed weights,
         this function will do nothing and return 0.
-
         Returns
         -------
         epoch: int
